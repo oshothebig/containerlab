@@ -6,6 +6,7 @@ package ext_container
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -38,6 +39,30 @@ func (s *extcont) Init(cfg *types.NodeConfig, opts ...nodes.NodeOption) error {
 	return nil
 }
 
+func (e *extcont) GetContainers(ctx context.Context) ([]types.GenericContainer, error) {
+	cnts, err := e.DefaultNode.GetContainers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(cnts) != 0 {
+		return cnts, nil
+	}
+
+	// fallback: finding containers with short name as external containers are often unprefixed
+	cnts, err = e.Runtime.ListContainers(ctx, []*types.GenericFilter{
+		{
+			FilterType: "name",
+			Match:      fmt.Sprintf("^%s$", e.Cfg.ShortName),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return cnts, nil
+}
+
 func (e *extcont) Deploy(ctx context.Context) error {
 	// check for the external dependency to be running
 	err := runtime.WaitForContainerRunning(ctx, e.Runtime, e.Cfg.ShortName, e.Cfg.ShortName)
@@ -63,6 +88,29 @@ func (e *extcont) Delete(_ context.Context) error { return nil }
 // GetImages don't matter for external containers.
 func (e *extcont) GetImages(_ context.Context) map[string]string { return map[string]string{} }
 func (e *extcont) PullImage(_ context.Context) error             { return nil }
+
+func (e *extcont) UpdateConfigWithRuntimeInfo(ctx context.Context) error {
+	cnts, err := e.GetContainers(ctx)
+	if err != nil {
+		return err
+	}
+
+	// TODO: rdodin: evaluate the necessity of this function, since runtime data may be updated by the runtime
+	// when we do listing of containers and produce the GenericContainer
+	// network settings of a first container only
+	netSettings := cnts[0].NetworkSettings
+
+	e.Cfg.MgmtIPv4Address = netSettings.IPv4addr
+	e.Cfg.MgmtIPv4PrefixLength = netSettings.IPv4pLen
+	e.Cfg.MgmtIPv6Address = netSettings.IPv6addr
+	e.Cfg.MgmtIPv6PrefixLength = netSettings.IPv6pLen
+	e.Cfg.MgmtIPv4Gateway = netSettings.IPv4Gw
+	e.Cfg.MgmtIPv6Gateway = netSettings.IPv6Gw
+
+	e.Cfg.ContainerID = cnts[0].ID
+
+	return nil
+}
 
 // RunExecType is the final function that calls the runtime to execute a type.Exec on a container
 // This is to be overriden if the nodes implementation differs.
