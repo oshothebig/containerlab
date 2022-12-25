@@ -87,7 +87,7 @@ func destroyFn(_ *cobra.Command, _ []string) error {
 		}
 		// get unique topo files from all labs
 		for i := range containers {
-			topos[containers[i].Labels["clab-topo-file"]] = struct{}{}
+			topos[containers[i].Labels[clab.TopoFileLabel]] = struct{}{}
 		}
 	}
 

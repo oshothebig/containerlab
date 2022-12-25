@@ -155,10 +155,10 @@ func printContainerInspect(containers []types.GenericContainer, format string) e
 
 		// get topo file path relative of the cwd
 		cwd, _ := os.Getwd()
-		path, _ := filepath.Rel(cwd, cont.Labels["clab-topo-file"])
+		path, _ := filepath.Rel(cwd, cont.Labels[clab.TopoFileLabel])
 
 		cdet := &types.ContainerDetails{
-			LabName:     cont.Labels["containerlab"],
+			LabName:     cont.Labels[clab.ContainerlabLabel],
 			LabPath:     path,
 			Image:       cont.Image,
 			State:       cont.State,
@@ -170,13 +170,13 @@ func printContainerInspect(containers []types.GenericContainer, format string) e
 		if len(cont.Names) > 0 {
 			cdet.Name = cont.Names[0]
 		}
-		if kind, ok := cont.Labels["clab-node-kind"]; ok {
+		if kind, ok := cont.Labels[clab.NodeKindLabel]; ok {
 			cdet.Kind = kind
 			if slices.Contains(mysocketionode.Kindnames, kind) {
 				printMysocket = true
 			}
 		}
-		if group, ok := cont.Labels["clab-node-group"]; ok {
+		if group, ok := cont.Labels[clab.NodeGroupLabel]; ok {
 			cdet.Group = group
 		}
 		contDetails = append(contDetails, *cdet)
@@ -328,7 +328,7 @@ func mySocketIoTokenFileFromBindMounts(containers []types.GenericContainer) []*T
 	result := []*TokenFileResults{}
 	for _, node := range containers {
 		// if not mysocketio kind then continue
-		if !slices.Contains(mysocketionode.Kindnames, node.Labels["clab-node-kind"]) {
+		if !slices.Contains(mysocketionode.Kindnames, node.Labels[clab.NodeKindLabel]) {
 			continue
 		}
 
@@ -346,7 +346,7 @@ func mySocketIoTokenFileFromBindMounts(containers []types.GenericContainer) []*T
 			continue
 		}
 		result = append(result, &TokenFileResults{
-			Labname: node.Labels["containerlab"],
+			Labname: node.Labels[clab.ContainerlabLabel],
 			File:    filepath,
 		})
 	}
